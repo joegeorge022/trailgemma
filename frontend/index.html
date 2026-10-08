@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrailGemma — Offline AI Nature Companion</title>
+  <meta name="description" content="Open-source AI for hikers and gardeners. Gemma 2, TabPFN, and ElevenLabs — 100% offline.">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+<body>
+
+<!-- Pocket Mode Overlay -->
+<div id="pocket-overlay">
+  <div class="pocket-leaf">🌿</div>
+  <div class="pocket-label">Pocket Mode</div>
+  <p class="pocket-sub">Screen is off. Audio guide is playing. Eyes on the trail.</p>
+  <div id="pocket-timer" class="pocket-timer">0m 00s</div>
+  <div class="pocket-dismiss">Tap anywhere to wake</div>
+</div>
+
+<!-- Header -->
+<header class="app-header">
+  <div class="header-inner">
+    <a class="logo" href="#">
+      <div class="logo-mark">
+        <svg viewBox="0 0 16 16"><path d="M8 1C4.134 1 1 4.134 1 8s3.134 7 7 7 7-3.134 7-7S11.866 1 8 1zm0 2c1.03 0 2 .27 2.836.742L3.742 10.836A4.98 4.98 0 0 1 3 8c0-2.757 2.243-5 5-5zm0 10c-1.03 0-2-.27-2.836-.742l7.094-7.094c.473.836.742 1.806.742 2.836 0 2.757-2.243 5-5 5z"/></svg>
+      </div>
+      <span class="logo-name">Trail<span>Gemma</span></span>
+    </a>
+
+    <div class="header-sep"></div>
+
+    <nav class="header-nav" role="tablist">
+      <button class="nav-pill active" data-tab="tab-foliage" role="tab" aria-selected="true">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 6S3 2 8 2s6.5 4 6.5 4S13 10 8 10 1.5 6 1.5 6z"/><path d="M8 10v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>
+        Foliage &amp; Trails
+      </button>
+      <button class="nav-pill" data-tab="tab-garden" role="tab" aria-selected="false">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 14V7M8 7C8 4 5 2 2 2c0 3 2 5 6 5zM8 7c0-3 3-5 6-5 0 3-2 5-6 5z"/></svg>
+        Garden Planner
+      </button>
+      <button class="nav-pill" data-tab="tab-birds" role="tab" aria-selected="false">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M12 3c-1.5 0-2.5 1-3 2-1-1-3-2-5-1l2 3-4 1 3 2-1 4 3-2 1 3 2-4 3 1-1-4 3-2-4-1 2-3c-.67 0-1.33.2-2 .5.33-.83.83-1.5 1-2z"/></svg>
+        Bird Acoustics
+      </button>
+      <button class="nav-pill" data-tab="tab-naturalist" role="tab" aria-selected="false">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M5 5.5h6M5 10.5h4"/></svg>
+        Naturalist Q&amp;A
+      </button>
+    </nav>
+
+    <div class="header-actions">
+      <div class="status-indicator" id="status-indicator" title="System status">
+        <span class="status-dot"></span>
+        <span id="status-model">Gemma 2 · Local</span>
+      </div>
+      <button class="btn-ghost" id="btn-sunlight" title="Toggle sunlight mode" aria-label="Toggle sunlight mode">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/></svg>
+      </button>
+      <button class="btn-pocket" id="btn-pocket" onclick="enterPocketMode()">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="8" height="14" rx="1.5"/><path d="M6.5 12h3"/></svg>
+        Pocket Mode
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- Timer strip -->
+<div class="timer-strip">
+  <span>Outdoor time today</span>
+  <span id="grass-counter" class="timer-value">0m 00s</span>
+  <span style="margin-left: auto; opacity: 0.5;">Offline-first · Open-weight · Zero tracking</span>
+</div>
+
+<!-- ─── TAB: Foliage & Trails ─────────────────────────── -->
+<div id="tab-foliage" class="tab-pane active">
+<div class="app-layout">
+
+  <!-- Hero -->
+  <div class="hero-banner">
+    <img src="/assets/fall_trail.jpg" alt="Autumn mountain trail with peak fall foliage" class="hero-img">
+    <div class="hero-content">
+      <div class="hero-eyebrow">
+        <span class="tag tag-amber">TabPFN · Phenology Model</span>
+        <span class="tag tag-blue">Gemma 2 · Audio Script</span>
+      </div>
+      <h2 class="hero-title" id="hero-trail-name">Sugarloaf Ridge &amp; Cascade Loop</h2>
+      <p class="hero-desc">Synthesize a 60-second field audio guide from live TabPFN canopy predictions, then pocket your phone and run.</p>
+      <div class="hero-actions">
+        <button id="btn-generate-briefing" class="btn btn-primary" onclick="triggerAudioBriefing()">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-1 4l5 3-5 3V5z"/></svg>
+          Generate Field Briefing
+        </button>
+        <button class="btn btn-outline" onclick="enterPocketMode()">
+          Pocket &amp; Go
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio Player -->
+  <section class="audio-player" id="audio-player-card">
+    <div class="audio-inner">
+      <!-- Waveform visualizer -->
+      <div class="audio-waveform-area" id="waveform-bars" aria-hidden="true">
+        <!-- Generated by JS -->
+      </div>
+
+      <!-- Controls -->
+      <div class="audio-controls">
+        <div class="playback-btns">
+          <button class="btn-skip" id="btn-skip-back" title="Back 15s">‹15</button>
+          <button class="btn-play" id="btn-play-pause" title="Play / Pause">
+            <svg class="icon-play" viewBox="0 0 16 16" fill="currentColor"><path d="M4 3.5l9 4.5-9 4.5V3.5z"/></svg>
+            <svg class="icon-pause" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3h2v10H5zM9 3h2v10H9z"/></svg>
+          </button>
+          <button class="btn-skip" id="btn-skip-fwd" title="Forward 15s">15›</button>
+          <button class="btn-skip btn-sm" id="btn-speed-toggle" style="width:auto; padding: 0 0.45rem; font-size: 0.7rem;">1×</button>
+        </div>
+        <div class="progress-area">
+          <div class="progress-track" id="audio-progress-track">
+            <div class="progress-fill" id="audio-progress"></div>
+          </div>
+          <div class="progress-meta">
+            <span id="audio-time-label">0:00 / 0:00</span>
+            <span id="audio-provider-tag" style="color: var(--text-3);">Ready</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transcript -->
+      <div class="audio-transcript" id="audio-transcript">
+        Select a trail and tap "Generate Field Briefing". Gemma 2 and TabPFN will synthesize your personalized spoken nature guide.
+      </div>
+    </div>
+  </section>
+
+  <!-- Two-column panel -->
+  <div class="panel-grid">
+
+    <!-- Left: Trail list + map -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Trail Routes</span>
+        <span class="tag tag-mono">3 trails</span>
+      </div>
+      <div id="trail-map"></div>
+      <div id="trails-list-container"></div>
+    </div>
+
+    <!-- Right: TabPFN visualizations -->
+    <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+
+      <!-- Foliage prediction -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Canopy Phenology</span>
+          <span class="tag tag-amber">TabPFN v9.1</span>
+        </div>
+        <div class="card-body" id="tabpfn-foliage-results">
+          <div class="empty-state">
+            <p>Select a trail to run the TabPFN canopy prediction model.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bird acoustics -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Trailhead Bio-Acoustics</span>
+          <span class="tag tag-blue">TabPFN v9.1</span>
+        </div>
+        <div class="card-body" id="tabpfn-bird-results">
+          <div class="empty-state">
+            <p>Bird occurrence predictions will appear here after trail selection.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ─── TAB: Garden Planner ──────────────────────────────── -->
+<div id="tab-garden" class="tab-pane">
+<div class="app-layout">
+
+  <!-- Hero -->
+  <div class="hero-banner">
+    <img src="/assets/garden_planner.jpg" alt="Autumn backyard garden with raised beds and frost" class="hero-img">
+    <div class="hero-content">
+      <div class="hero-eyebrow">
+        <span class="tag tag-amber">TabPFN · Microclimate Model</span>
+      </div>
+      <h2 class="hero-title">Backyard Frost Planner</h2>
+      <p class="hero-desc">Hyper-local frost prediction using slope aspect, elevation lapse rates, and water body thermal buffering — not zip code averages.</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" onclick="calculateTabPFNFrost()">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 2v12M2 8h12"/></svg>
+          Run Frost Model
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-grid">
+
+    <!-- Inputs -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Microclimate Inputs</span>
+      </div>
+      <div class="card-body">
+        <div class="field" style="margin-bottom: 1rem;">
+          <label for="garden-preset-select">Load preset location</label>
+          <select id="garden-preset-select"></select>
+        </div>
+
+        <div class="section-label">Environment parameters</div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="frost-elev">Elevation (m)</label>
+            <input type="number" id="frost-elev" value="260" onchange="calculateTabPFNFrost()">
+          </div>
+          <div class="field">
+            <label for="frost-dist-water">Distance to water (km)</label>
+            <input type="number" id="frost-dist-water" value="3.8" step="0.1" onchange="calculateTabPFNFrost()">
+          </div>
+          <div class="field">
+            <label for="frost-aspect">Slope aspect (° S=180)</label>
+            <input type="number" id="frost-aspect" value="175" onchange="calculateTabPFNFrost()">
+          </div>
+          <div class="field">
+            <label for="frost-temp">Avg night temp (°C)</label>
+            <input type="number" id="frost-temp" value="3.2" step="0.5" onchange="calculateTabPFNFrost()">
+          </div>
+          <div class="field">
+            <label for="frost-moisture">Soil moisture (%)</label>
+            <input type="number" id="frost-moisture" value="38" onchange="calculateTabPFNFrost()">
+          </div>
+          <div class="field">
+            <label for="frost-canopy">Canopy cover (%)</label>
+            <input type="number" id="frost-canopy" value="20" onchange="calculateTabPFNFrost()">
+          </div>
+        </div>
+
+        <div class="callout callout-amber" style="margin-top: 0.25rem;">
+          <div class="callout-title">Why TabPFN beats frost date tables</div>
+          Zip code averages ignore slope orientation, cold air pooling in valleys, and thermal buffering from nearby lakes. TabPFN models all three with Bayesian in-context inference.
+        </div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Frost Probability &amp; Planting Guide</span>
+        <span class="tag tag-amber">Prior Labs TabPFN</span>
+      </div>
+      <div class="card-body" id="tabpfn-frost-results">
+        <div class="empty-state">
+          <p>Adjust inputs and click "Run Frost Model" to see predictions.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- ─── TAB: Bird Acoustics ──────────────────────────────── -->
+<div id="tab-birds" class="tab-pane">
+<div class="app-layout">
+
+  <div class="page-heading">
+    <h2>Trailhead Bio-Acoustics</h2>
+    <p>TabPFN predicts which birds are vocalizing right now based on your time of day, elevation, and canopy density. Put the phone away and listen.</p>
+  </div>
+
+  <div class="panel-grid">
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">How to Listen Hands-Free</span>
+      </div>
+      <div class="card-body">
+        <ol class="step-list">
+          <li>Select your trail on the Foliage tab — bird predictions update automatically.</li>
+          <li>Note the top 3 species and their characteristic call descriptions below.</li>
+          <li>Tap <strong>Pocket Mode</strong> to dim your screen. No more glancing down.</li>
+          <li>Every 10 minutes, pause for 60 seconds and listen to the sub-canopy with your eyes closed.</li>
+        </ol>
+
+        <div class="divider"></div>
+        <div class="section-label">Autumn Vocal Signatures</div>
+        <div class="bird-list">
+          <div class="bird-item">
+            <div>
+              <div class="bird-name">Hermit Thrush</div>
+              <div class="bird-call">"Oh holy holy · ah purity purity · eeh sweetly sweetly"</div>
+              <div class="bird-tip">High elevation hemlock ravines, dawn and dusk</div>
+            </div>
+            <div class="bird-pct">↑ High elev</div>
+          </div>
+          <div class="bird-item">
+            <div>
+              <div class="bird-name">Black-capped Chickadee</div>
+              <div class="bird-call">"Fee-bee" (2 tones) · "Chick-a-dee-dee-dee" (alarm)</div>
+              <div class="bird-tip">All-day, dense brush and shrub edges</div>
+            </div>
+            <div class="bird-pct">Ubiquitous</div>
+          </div>
+          <div class="bird-item">
+            <div>
+              <div class="bird-name">Pileated Woodpecker</div>
+              <div class="bird-call">Resonant double-knock drumming · loud "Wuk-wuk-wuk"</div>
+              <div class="bird-tip">Mature hardwood, deadwood excavation, mornings</div>
+            </div>
+            <div class="bird-pct">Dense canopy</div>
+          </div>
+          <div class="bird-item">
+            <div>
+              <div class="bird-name">White-throated Sparrow</div>
+              <div class="bird-call">"Poor Sam Peabody, Peabody, Peabody" (descending)</div>
+              <div class="bird-tip">Autumn migrant, brushy trail edges and fallen leaves</div>
+            </div>
+            <div class="bird-pct">Cool mornings</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Live Occurrence Predictions</span>
+        <span class="tag tag-blue">TabPFN · Acoustic Model</span>
+      </div>
+      <div class="card-body" id="tabpfn-bird-results-full">
+        <div class="empty-state">
+          <p>Select a trail on the Foliage &amp; Trails tab to load live bird occurrence predictions for current conditions.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- ─── TAB: Naturalist Q&A ──────────────────────────────── -->
+<div id="tab-naturalist" class="tab-pane">
+<div class="app-layout">
+
+  <div class="page-heading">
+    <h2>Gemma 2 Field Naturalist</h2>
+    <p>Gemma 2 (2B open-weight) runs fully on-device via Ollama — no cloud, no account, no signal needed.</p>
+  </div>
+
+  <div class="panel-grid">
+
+    <div>
+      <div class="card" style="margin-bottom: 1rem;">
+        <div class="card-header">
+          <span class="card-title">Suggested questions</span>
+        </div>
+        <div class="card-body">
+          <div class="prompt-chips">
+            <button class="chip" onclick="askQuestion('How do I plant winter garlic before the first hard freeze?')">Winter garlic planting</button>
+            <button class="chip" onclick="askQuestion('Are shiny white berries in autumn woods poisonous?')">White berries — safe?</button>
+            <button class="chip" onclick="askQuestion('Why do sugar maples turn red before red oaks?')">Maple vs oak colors</button>
+            <button class="chip" onclick="askQuestion('How do I identify chicken of the woods mushroom safely?')">Chicken of the woods</button>
+            <button class="chip" onclick="askQuestion('What cover crops should I plant in autumn for spring fertility?')">Autumn cover crops</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Model info</span>
+        </div>
+        <div class="card-body">
+          <div class="stat-grid">
+            <div class="stat-cell">
+              <div class="stat-label">Model</div>
+              <div class="stat-value" style="font-size: 0.95rem; letter-spacing: -0.01em;">Gemma 2 2B</div>
+            </div>
+            <div class="stat-cell">
+              <div class="stat-label">Runtime</div>
+              <div class="stat-value" style="font-size: 0.95rem; letter-spacing: -0.01em;">Local Ollama</div>
+            </div>
+            <div class="stat-cell">
+              <div class="stat-label">Cloud usage</div>
+              <div class="stat-value" style="font-size: 0.95rem; color: var(--accent);">Zero</div>
+            </div>
+            <div class="stat-cell">
+              <div class="stat-label">Tracking</div>
+              <div class="stat-value" style="font-size: 0.95rem; color: var(--accent);">None</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat -->
+    <div class="chat-window">
+      <div class="chat-messages" id="chat-history">
+        <div class="msg msg-ai">
+          <div class="msg-sender">Gemma Ranger</div>
+          Welcome. I'm running locally on Gemma 2 — no internet required. Ask me anything about native plants, wild fungi safety, autumn soil preparation, or what you're hearing on the trail right now.
+        </div>
+      </div>
+      <div class="chat-input-row">
+        <form id="chat-form" style="display: contents;">
+          <input class="chat-input" type="text" id="chat-input" placeholder="Ask a field question…" autocomplete="off">
+          <button type="submit" class="chat-send" title="Send">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 8l12-6-4 6 4 6z"/></svg>
+          </button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- Footer -->
+<footer class="app-footer">
+  <div style="display: flex; align-items: center; justify-content: center; gap: 1.5rem; flex-wrap: wrap;">
+    <span>TrailGemma — Hacktoberfest Open-Source AI Challenge · Touch Grass</span>
+    <span style="color: var(--border);">|</span>
+    <span><a href="#">Google Gemma 2</a> · <a href="#">Prior Labs TabPFN</a> · <a href="#">ElevenLabs</a></span>
+  </div>
+</footer>
+
+<script src="/js/tabpfn_ui.js"></script>
+<script src="/js/audio_guide.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
